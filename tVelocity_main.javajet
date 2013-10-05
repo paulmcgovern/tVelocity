@@ -1,0 +1,75 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map
+	" 
+%>
+<%
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+
+String vlcyTemplate = ElementParameterParser.getValue(node, "__VLCY_TEMPLATE__");
+String vlcyOutput = ElementParameterParser.getValue(node, "__VLCY_OUTPUT__");
+
+List<Map<String, String>> paramsByNameList = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__VLCY_PARAMS__");
+%>
+
+// Turn off Velocity logging
+// and set the FileResourceLoader 
+// to handle an absolute path
+// to the template file.
+org.apache.velocity.app.Velocity.setProperty( org.apache.velocity.runtime.RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, "org.apache.velocity.runtime.log.NullLogSystem" );
+org.apache.velocity.app.Velocity.setProperty( org.apache.velocity.runtime.RuntimeConstants.FILE_RESOURCE_LOADER_PATH, "" );
+
+org.apache.velocity.app.Velocity.init();
+
+org.apache.velocity.VelocityContext vlcyContext<%=cid%> = new org.apache.velocity.VelocityContext();
+
+
+<%
+int count = paramsByNameList.size();
+
+for (int i = 0; i < count; i++) {
+	
+	java.util.Map<String, String> kv  = paramsByNameList.get( i );
+%>
+        vlcyContext<%=cid%> .put(<%= kv.get("NAME") %>, <%= kv.get("VALUE") %>);
+<%
+}
+%>
+
+org.apache.velocity.Template t<%=cid%> = org.apache.velocity.app.Velocity.getTemplate( <%= vlcyTemplate %> );
+java.io.Writer w<%=cid%> = null;
+try {
+
+	java.io.File out<%=cid%> = new java.io.File( <%= vlcyOutput %> );
+	
+	w<%=cid%> = new java.io.FileWriter( out<%=cid%> );
+	t<%=cid%>.merge( vlcyContext<%=cid%>, w<%=cid%> );
+	
+	globalMap.put("<%=cid %>_OUTPUT_FILEPATH", out<%=cid%>.getAbsolutePath() );
+	globalMap.put("<%=cid %>_OUTPUT_FILE", out<%=cid%>.getName() );	
+	
+} finally {
+	if( w<%=cid%> != null ) {
+		try {
+			w<%=cid%>.flush();
+			w<%=cid%>.close();
+		} catch( java.io.IOException e ) {
+			// Report, but ignore.
+			e.printStackTrace();
+		}
+	}
+}
+
+
